@@ -515,6 +515,7 @@ class Cartthrob_shipping_usps extends CartThrob_shipping
 			$available_shipping =array(); 
 			foreach ($shipping['option_value'] as $key => $value)
 			{
+			// REMOVE THE ONES THAT ARE NOT OPTIONS
 				if ( $this->plugin_settings($value) !="n" )
 				{
 					$available_shipping['price'][$key] 				= $shipping['price'][$key]; 
@@ -527,7 +528,6 @@ class Cartthrob_shipping_usps extends CartThrob_shipping
 			{
 				$available_shipping['error_message'] = $shipping['error_message']; 
 				$this->core->cart->set_custom_data("shipping_error", $shipping['error_message']); 
-				
 			}
 			// update cart shipping hash
 			$this->cart_hash($available_shipping); 
@@ -540,10 +540,9 @@ class Cartthrob_shipping_usps extends CartThrob_shipping
 				{
 					$available_shipping['error_message'] .= " International shipping options may need to be added. "; 
 				}
-				$this->core->cart->set_custom_data("shipping_error", $shipping['error_message']); 
+			$this->core->cart->set_custom_data("shipping_error", $available_shipping['error_message']); 
 				
 			}
-			
 			$this->core->cart->save(); 
 			
 			return $available_shipping;
@@ -807,7 +806,10 @@ class Cartthrob_shipping_usps extends CartThrob_shipping
 		}
 		
 		$shipping_data =$this->core->cart->custom_data(ucfirst(get_class($this)));
-
+		if (empty($shipping_data['option_value']) && empty($shipping_data['price']))
+ 		{
+			$shipping_data = $this->get_live_rates(); 
+		}
 	 	if(!$this->core->cart->shipping_info('shipping_option'))
 		{
 			$temp_key = FALSE; 
@@ -883,11 +885,13 @@ class Cartthrob_shipping_usps extends CartThrob_shipping
 		}
 		return $available_options; 
 	}
+	// END
 	public function plugin_shipping_options()
 	{
 		$options = array(); 
  		// GETTING THE RATES FROM SESSION
 		$shipping_data =$this->core->cart->custom_data(ucfirst(get_class($this)));
+		$this->core->cart->save(); 
 		
 		/*
  		if (!$shipping_data)
