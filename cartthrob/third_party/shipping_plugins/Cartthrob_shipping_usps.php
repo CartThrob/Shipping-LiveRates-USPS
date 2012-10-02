@@ -347,11 +347,14 @@ class Cartthrob_shipping_usps extends CartThrob_shipping
 				{
 					case "express": 
 					case "priority": 
+						/*
+						// @NOTE only set this if you're sending via a flat rate envelope or other flat rate item
 						if ($size == "REGULAR")
 						{
 							$container = "FLAT RATE ENVELOPE"; 
 						}
 						break;
+						*/ 
 					case "parcel": 
 						if ($size == "REGULAR")
 						{
