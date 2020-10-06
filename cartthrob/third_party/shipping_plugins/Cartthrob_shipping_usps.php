@@ -826,7 +826,8 @@ class Cartthrob_shipping_usps extends Cartthrob_shipping
                 return ee('cartthrob:MoneyService')->toMoney(min($shipping_data['price']));
             }
         }
-        return 0;
+        
+        return ee('cartthrob:MoneyService')->fresh();
     }
 
     /**
