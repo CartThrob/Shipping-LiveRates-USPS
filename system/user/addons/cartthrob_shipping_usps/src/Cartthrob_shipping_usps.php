@@ -1,8 +1,9 @@
 <?php if ( ! defined('CARTTHROB_PATH')) Cartthrob_core::core_error('No direct script access allowed');
 
+use CartThrob\Plugins\Shipping\ShippingPlugin;
 use Money\Money;
 
-class Cartthrob_shipping_usps extends Cartthrob_shipping
+class Cartthrob_shipping_usps extends ShippingPlugin
 {
     public $title = "usps_title";
     public $overview = 'usps_overview';
@@ -205,23 +206,24 @@ class Cartthrob_shipping_usps extends Cartthrob_shipping
                 )
         ),
     );
-    public $required_fields = array();
 
-    public $shipping_methods = array(
-            ''		=> '--- Valid Domestic Values ---',
-            'PARCEL'	=> 'Parcel',
-            'FIRST_CLASS'	=> 'First-Class',
-            'EXPRESS'	=> 'Express',
-            'EXPRESS_SH'	=> 'Express SH',
-            'EXPRESS_COMMERCIAL'	=> 'Express Commercial',
-            'PRIORITY'	=> 'Priority',
-            'PRIORITY_COMMERCIAL'	=> 'Priority Commercial',
-            'MEDIA'	=> 'Media Mail',
-            ''		=> '--- Valid International Values ---',
-            'FIRST_CLASS_INTERNATIONAL'	=> 'Express Mail International',
-            'PRIORITY_MAIL_INTERNATIONAL'	=> 'Priority Mail International',
-            'EXPRESS_MAIL_INTERNATIONAL'	=> 'First-Class International',
-        );
+    public $required_fields = [];
+
+    public $shipping_methods = [
+        ''		=> '--- Valid Domestic Values ---',
+        'PARCEL'	=> 'Parcel',
+        'FIRST_CLASS'	=> 'First-Class',
+        'EXPRESS'	=> 'Express',
+        'EXPRESS_SH'	=> 'Express SH',
+        'EXPRESS_COMMERCIAL'	=> 'Express Commercial',
+        'PRIORITY'	=> 'Priority',
+        'PRIORITY_COMMERCIAL'	=> 'Priority Commercial',
+        'MEDIA'	=> 'Media Mail',
+        ''		=> '--- Valid International Values ---',
+        'FIRST_CLASS_INTERNATIONAL'	=> 'Express Mail International',
+        'PRIORITY_MAIL_INTERNATIONAL'	=> 'Priority Mail International',
+        'EXPRESS_MAIL_INTERNATIONAL'	=> 'First-Class International',
+    ];
 
     /**
      * @param array $params
@@ -230,8 +232,7 @@ class Cartthrob_shipping_usps extends Cartthrob_shipping
      */
     public function initialize($params = [], $defaults = [])
     {
-        if(is_callable('ini_set'))
-        {
+        if(is_callable('ini_set')) {
             ini_set("soap.wsdl_cache_enabled", "0");
         }
     }
@@ -269,12 +270,9 @@ class Cartthrob_shipping_usps extends Cartthrob_shipping
         $weight_total =  ($this->core->cart->weight() ? $this->core->cart->weight() : 1);
 
 
-        if ($option_value == "ALL")
-        {
+        if ($option_value == "ALL") {
             $product_id= $this->plugin_settings("product_id");
-        }
-        else
-        {
+        } else {
             $product_id = $option_value;
         }
 
@@ -361,9 +359,7 @@ class Cartthrob_shipping_usps extends Cartthrob_shipping
 
             $xml = new SimpleXMLElement(ee()->cartthrob_shipping_plugins->curl_transaction($this->host. urlencode( (string) $request->asXML() ) ));
 
-        }
-        else
-        {
+        } else {
             $request = new SimpleXMLElement("<".$intl_api."Request USERID='".$this->plugin_settings('userid')."'></".$intl_api."Request>");
             $request->addChild("Revision", "2");
 
@@ -393,15 +389,14 @@ class Cartthrob_shipping_usps extends Cartthrob_shipping
             'option_name'	=> [],
         ];
 
-        if (isset($xml->Number) && $xml->Number == "80040b1a")
-        {
+        if (isset($xml->Number) && $xml->Number == "80040b1a") {
             $shipping['error_message']	= (string) $xml->Description;
 
-            if ($shipping['error_message'])
-            {
+            if ($shipping['error_message']) {
                 $available_shipping['error_message'] = $shipping['error_message'];
                 $this->core->cart->set_custom_data("shipping_error", $shipping['error_message']);
             }
+
             // update cart shipping hash
             $this->cart_hash($available_shipping);
             $this->core->cart->save();
@@ -411,45 +406,36 @@ class Cartthrob_shipping_usps extends Cartthrob_shipping
 
         $errors = [];
 
-        if (isset($xml->Package))
-        {
-            foreach ($xml->Package as $package)
-            {
-                if ($package->Error)
-                {
+        if (isset($xml->Package)) {
+
+            foreach ($xml->Package as $package) {
+
+                if ($package->Error) {
                     $errors[] = (string) $package->Error[0]->Description;
-                }
-                else
-                {
-                    if ($dest_country_code== "US")
-                    {
+                } else {
+                    if ($dest_country_code== "US") {
                         $service_type = (string) $package->attributes()->ID;
 
-                        foreach ($package->Postage as $postage)
-                        {
+                        foreach ($package->Postage as $postage) {
+
                             $shipping['error_message']	= NULL;
-                            if ($product_id && !empty($postage->CommercialRate))
-                            {
+
+                            if ($product_id && !empty($postage->CommercialRate)) {
                                  $shipping['price'][] = number_format((string)$postage->CommercialRate,2,".",",");
-                            }
-                            else
-                            {
+                            } else {
                                  $shipping['price'][] = number_format((string)$postage->Rate,2,".",",");
                             }
+
                             $shipping['option_value'][]	= $service_type;
                             $shipping['option_name'][]  = $this->shipping_methods($service_type);
                         }
-                    }
-                    else
-                    {
-                        foreach ($package->Service as $service)
-                        {
+                    } else {
+                        foreach ($package->Service as $service) {
                             $service_type = str_replace("&lt;sup&gt;&amp;reg;&lt;/sup&gt;", "",  (string)$service->SvcDescription) ;
                             $service_type = str_replace("&lt;sup&gt;&amp;trade;&lt;/sup&gt;","", $service_type);
                             $service_type = str_replace("**", "",  $service_type) ;
 
-                            switch ($service_type)
-                            {
+                            switch ($service_type) {
                                 case "Express Mail International":
                                     $service_type = "EXPRESS_MAIL_INTERNATIONAL";
                                 break;
@@ -461,28 +447,23 @@ class Cartthrob_shipping_usps extends Cartthrob_shipping
                                 case "First-Class Mail International Package":
                                     $service_type = "FIRST_CLASS_INTERNATIONAL";
                                 break;
-
                             }
 
-                            if ($this->shipping_methods($service_type) != "--")
-                            {
-                                $shipping['error_message']	= NULL;
-                                if ($product_id && !empty($service->Postage))
-                                {
+                            if ($this->shipping_methods($service_type) != "--") {
+                                $shipping['error_message']	= null;
+
+                                if ($product_id && !empty($service->Postage)) {
+                                     $shipping['price'][] = number_format((string)$service->Postage,2,".",",");
+                                } else {
                                      $shipping['price'][] = number_format((string)$service->Postage,2,".",",");
                                 }
-                                else
-                                {
-                                     $shipping['price'][] = number_format((string)$service->Postage,2,".",",");
-                                }
+
                                 $shipping['option_value'][]	= $service_type;
                                 $shipping['option_name'][]  = $this->shipping_methods($service_type);
                             }
                         }
                     }
                 }
-
-
             }
 
             if (count($errors) > 0 ) {
@@ -513,11 +494,10 @@ class Cartthrob_shipping_usps extends Cartthrob_shipping
             $this->cart_hash($available_shipping);
 
             // if there's no errors, but we removed all of the shipping options, it's because none of the values were configured on the backend. We need to warn.
-            if (empty($available_shipping['error_message']) && empty($available_shipping['price']) && !empty($available_shipping))
-            {
+            if (empty($available_shipping['error_message']) && empty($available_shipping['price']) && !empty($available_shipping)) {
                 $available_shipping['error_message'] = "Shipping options compatible with your location: (".$shipping_address ." ". $shipping_address2 ." ". $shipping_city." ". ($shipping_state?",".$shipping_state: "")." ". $shipping_zip ." ". $dest_country_code.") have not been configured in the cart settings. Please contact the webmaster";
-                if ($dest_country_code != $orig_country_code)
-                {
+
+                if ($dest_country_code != $orig_country_code) {
                     $available_shipping['error_message'] .= " International shipping options may need to be added. ";
                 }
 
@@ -531,246 +511,10 @@ class Cartthrob_shipping_usps extends Cartthrob_shipping
     }
 
     /**
-     * @param $code
-     * @return mixed|null
-     */
-    function usps_country($code)
-    {
-       $country_list = [
-          'AD' => 'Andorra',
-          'AE' => 'United Arab Emirates',
-          'AF' => 'Afghanistan',
-          'AG' => 'Antigua and Barbuda',
-          'AI' => 'Anguilla',
-          'AL' => 'Albania',
-          'AM' => 'Armenia',
-          'AN' => 'Netherlands Antilles',
-          'AO' => 'Angola',
-          'AR' => 'Argentina',
-          'AT' => 'Austria',
-          'AU' => 'Australia',
-          'AW' => 'Aruba',
-          'AX' => 'Aland Island (Finland)',
-          'AZ' => 'Azerbaijan',
-          'BA' => 'Bosnia-Herzegovina',
-          'BB' => 'Barbados',
-          'BD' => 'Bangladesh',
-          'BE' => 'Belgium',
-          'BF' => 'Burkina Faso',
-          'BG' => 'Bulgaria',
-          'BH' => 'Bahrain',
-          'BI' => 'Burundi',
-          'BJ' => 'Benin',
-          'BM' => 'Bermuda',
-          'BN' => 'Brunei Darussalam',
-          'BO' => 'Bolivia',
-          'BR' => 'Brazil',
-          'BS' => 'Bahamas',
-          'BT' => 'Bhutan',
-          'BW' => 'Botswana',
-          'BY' => 'Belarus',
-          'BZ' => 'Belize',
-          'CA' => 'Canada',
-          'CC' => 'Cocos Island (Australia)',
-          'CD' => 'Congo, Democratic Republic of the',
-          'CF' => 'Central African Republic',
-          'CG' => 'Congo, Republic of the',
-          'CH' => 'Switzerland',
-          'CI' => 'Cote d Ivoire (Ivory Coast)',
-          'CK' => 'Cook Islands (New Zealand)',
-          'CL' => 'Chile',
-          'CM' => 'Cameroon',
-          'CN' => 'China',
-          'CO' => 'Colombia',
-          'CR' => 'Costa Rica',
-          'CU' => 'Cuba',
-          'CV' => 'Cape Verde',
-          'CX' => 'Christmas Island (Australia)',
-          'CY' => 'Cyprus',
-          'CZ' => 'Czech Republic',
-          'DE' => 'Germany',
-          'DJ' => 'Djibouti',
-          'DK' => 'Denmark',
-          'DM' => 'Dominica',
-          'DO' => 'Dominican Republic',
-          'DZ' => 'Algeria',
-          'EC' => 'Ecuador',
-          'EE' => 'Estonia',
-          'EG' => 'Egypt',
-          'ER' => 'Eritrea',
-          'ES' => 'Spain',
-          'ET' => 'Ethiopia',
-          'FI' => 'Finland',
-          'FJ' => 'Fiji',
-          'FK' => 'Falkland Islands',
-          'FM' => 'Micronesia, Federated States of',
-          'FO' => 'Faroe Islands',
-          'FR' => 'France',
-          'GA' => 'Gabon',
-          'GB' => 'Great Britain and Northern Ireland',
-          'GD' => 'Grenada',
-          'GE' => 'Georgia, Republic of',
-          'GF' => 'French Guiana',
-          'GH' => 'Ghana',
-          'GI' => 'Gibraltar',
-          'GL' => 'Greenland',
-          'GM' => 'Gambia',
-          'GN' => 'Guinea',
-          'GP' => 'Guadeloupe',
-          'GQ' => 'Equatorial Guinea',
-          'GR' => 'Greece',
-          'GS' => 'South Georgia (Falkland Islands)',
-          'GT' => 'Guatemala',
-          'GW' => 'Guinea-Bissau',
-          'GY' => 'Guyana',
-          'HK' => 'Hong Kong',
-          'HN' => 'Honduras',
-          'HR' => 'Croatia',
-          'HT' => 'Haiti',
-          'HU' => 'Hungary',
-          'ID' => 'Indonesia',
-          'IE' => 'Ireland',
-          'IL' => 'Israel',
-          'IN' => 'India',
-          'IQ' => 'Iraq',
-          'IR' => 'Iran',
-          'IS' => 'Iceland',
-          'IT' => 'Italy',
-          'JM' => 'Jamaica',
-          'JO' => 'Jordan',
-          'JP' => 'Japan',
-          'KE' => 'Kenya',
-          'KG' => 'Kyrgyzstan',
-          'KH' => 'Cambodia',
-          'KI' => 'Kiribati',
-          'KM' => 'Comoros',
-          'KN' => 'Saint Kitts (St. Christopher and Nevis)',
-          'KP' => 'North Korea (Korea, Democratic People\'s Republic of)',
-          'KR' => 'South Korea (Korea, Republic of)',
-          'KW' => 'Kuwait',
-          'KY' => 'Cayman Islands',
-          'KZ' => 'Kazakhstan',
-          'LA' => 'Laos',
-          'LB' => 'Lebanon',
-          'LC' => 'Saint Lucia',
-          'LI' => 'Liechtenstein',
-          'LK' => 'Sri Lanka',
-          'LR' => 'Liberia',
-          'LS' => 'Lesotho',
-          'LT' => 'Lithuania',
-          'LU' => 'Luxembourg',
-          'LV' => 'Latvia',
-          'LY' => 'Libya',
-          'MA' => 'Morocco',
-          'MC' => 'Monaco (France)',
-          'MD' => 'Moldova',
-          'MG' => 'Madagascar',
-          'MK' => 'Macedonia, Republic of',
-          'ML' => 'Mali',
-          'MM' => 'Burma',
-          'MN' => 'Mongolia',
-          'MO' => 'Macao',
-          'MQ' => 'Martinique',
-          'MR' => 'Mauritania',
-          'MS' => 'Montserrat',
-          'MT' => 'Malta',
-          'MU' => 'Mauritius',
-          'MV' => 'Maldives',
-          'MW' => 'Malawi',
-          'MX' => 'Mexico',
-          'MY' => 'Malaysia',
-          'MZ' => 'Mozambique',
-          'NA' => 'Namibia',
-          'NC' => 'New Caledonia',
-          'NE' => 'Niger',
-          'NG' => 'Nigeria',
-          'NI' => 'Nicaragua',
-          'NL' => 'Netherlands',
-          'NO' => 'Norway',
-          'NP' => 'Nepal',
-          'NR' => 'Nauru',
-          'NZ' => 'New Zealand',
-          'OM' => 'Oman',
-          'PA' => 'Panama',
-          'PE' => 'Peru',
-          'PF' => 'French Polynesia',
-          'PG' => 'Papua New Guinea',
-          'PH' => 'Philippines',
-          'PK' => 'Pakistan',
-          'PL' => 'Poland',
-          'PM' => 'Saint Pierre and Miquelon',
-          'PN' => 'Pitcairn Island',
-          'PT' => 'Portugal',
-          'PY' => 'Paraguay',
-          'QA' => 'Qatar',
-          'RE' => 'Reunion',
-          'RO' => 'Romania',
-          'RS' => 'Serbia',
-          'RU' => 'Russia',
-          'RW' => 'Rwanda',
-          'SA' => 'Saudi Arabia',
-          'SB' => 'Solomon Islands',
-          'SC' => 'Seychelles',
-          'SD' => 'Sudan',
-          'SE' => 'Sweden',
-          'SG' => 'Singapore',
-          'SH' => 'Saint Helena',
-          'SI' => 'Slovenia',
-          'SK' => 'Slovak Republic',
-          'SL' => 'Sierra Leone',
-          'SM' => 'San Marino',
-          'SN' => 'Senegal',
-          'SO' => 'Somalia',
-          'SR' => 'Suriname',
-          'ST' => 'Sao Tome and Principe',
-          'SV' => 'El Salvador',
-          'SY' => 'Syrian Arab Republic',
-          'SZ' => 'Swaziland',
-          'TC' => 'Turks and Caicos Islands',
-          'TD' => 'Chad',
-          'TG' => 'Togo',
-          'TH' => 'Thailand',
-          'TJ' => 'Tajikistan',
-          'TK' => 'Tokelau (Union) Group (Western Samoa)',
-          'TL' => 'East Timor (Indonesia)',
-          'TM' => 'Turkmenistan',
-          'TN' => 'Tunisia',
-          'TO' => 'Tonga',
-          'TR' => 'Turkey',
-          'TT' => 'Trinidad and Tobago',
-          'TV' => 'Tuvalu',
-          'TW' => 'Taiwan',
-          'TZ' => 'Tanzania',
-          'UA' => 'Ukraine',
-          'UG' => 'Uganda',
-          'UY' => 'Uruguay',
-          'UZ' => 'Uzbekistan',
-          'VA' => 'Vatican City',
-          'VC' => 'Saint Vincent and the Grenadines',
-          'VE' => 'Venezuela',
-          'VG' => 'British Virgin Islands',
-          'VN' => 'Vietnam',
-          'VU' => 'Vanuatu',
-          'WF' => 'Wallis and Futuna Islands',
-          'WS' => 'Western Samoa',
-          'YE' => 'Yemen',
-          'YT' => 'Mayotte (France)',
-          'ZA' => 'South Africa',
-          'ZM' => 'Zambia',
-          'ZW' => 'Zimbabwe',
-        ];
-
-        if (isset($country_list[$code]))
-        {
-            return $country_list[$code];
-        }
-        return NULL;
-    }
-
-    /**
+     * @param Cartthrob_cart $cart
      * @return Money
      */
-    function get_shipping(): Money
+    public function rate(Cartthrob_cart $cart): Money
     {
         $cart_hash = $this->core->cart->custom_data('cart_hash');
 
@@ -861,7 +605,7 @@ class Cartthrob_shipping_usps extends Cartthrob_shipping
     /**
      * @return array
      */
-    public function plugin_shipping_options()
+    public function plugin_shipping_options(): array
     {
         $options = array();
         // GETTING THE RATES FROM SESSION
@@ -894,10 +638,247 @@ class Cartthrob_shipping_usps extends Cartthrob_shipping
     }
 
     /**
+     * @param $code
+     * @return mixed|null
+     */
+    protected function usps_country($code)
+    {
+        $country_list = [
+            'AD' => 'Andorra',
+            'AE' => 'United Arab Emirates',
+            'AF' => 'Afghanistan',
+            'AG' => 'Antigua and Barbuda',
+            'AI' => 'Anguilla',
+            'AL' => 'Albania',
+            'AM' => 'Armenia',
+            'AN' => 'Netherlands Antilles',
+            'AO' => 'Angola',
+            'AR' => 'Argentina',
+            'AT' => 'Austria',
+            'AU' => 'Australia',
+            'AW' => 'Aruba',
+            'AX' => 'Aland Island (Finland)',
+            'AZ' => 'Azerbaijan',
+            'BA' => 'Bosnia-Herzegovina',
+            'BB' => 'Barbados',
+            'BD' => 'Bangladesh',
+            'BE' => 'Belgium',
+            'BF' => 'Burkina Faso',
+            'BG' => 'Bulgaria',
+            'BH' => 'Bahrain',
+            'BI' => 'Burundi',
+            'BJ' => 'Benin',
+            'BM' => 'Bermuda',
+            'BN' => 'Brunei Darussalam',
+            'BO' => 'Bolivia',
+            'BR' => 'Brazil',
+            'BS' => 'Bahamas',
+            'BT' => 'Bhutan',
+            'BW' => 'Botswana',
+            'BY' => 'Belarus',
+            'BZ' => 'Belize',
+            'CA' => 'Canada',
+            'CC' => 'Cocos Island (Australia)',
+            'CD' => 'Congo, Democratic Republic of the',
+            'CF' => 'Central African Republic',
+            'CG' => 'Congo, Republic of the',
+            'CH' => 'Switzerland',
+            'CI' => 'Cote d Ivoire (Ivory Coast)',
+            'CK' => 'Cook Islands (New Zealand)',
+            'CL' => 'Chile',
+            'CM' => 'Cameroon',
+            'CN' => 'China',
+            'CO' => 'Colombia',
+            'CR' => 'Costa Rica',
+            'CU' => 'Cuba',
+            'CV' => 'Cape Verde',
+            'CX' => 'Christmas Island (Australia)',
+            'CY' => 'Cyprus',
+            'CZ' => 'Czech Republic',
+            'DE' => 'Germany',
+            'DJ' => 'Djibouti',
+            'DK' => 'Denmark',
+            'DM' => 'Dominica',
+            'DO' => 'Dominican Republic',
+            'DZ' => 'Algeria',
+            'EC' => 'Ecuador',
+            'EE' => 'Estonia',
+            'EG' => 'Egypt',
+            'ER' => 'Eritrea',
+            'ES' => 'Spain',
+            'ET' => 'Ethiopia',
+            'FI' => 'Finland',
+            'FJ' => 'Fiji',
+            'FK' => 'Falkland Islands',
+            'FM' => 'Micronesia, Federated States of',
+            'FO' => 'Faroe Islands',
+            'FR' => 'France',
+            'GA' => 'Gabon',
+            'GB' => 'Great Britain and Northern Ireland',
+            'GD' => 'Grenada',
+            'GE' => 'Georgia, Republic of',
+            'GF' => 'French Guiana',
+            'GH' => 'Ghana',
+            'GI' => 'Gibraltar',
+            'GL' => 'Greenland',
+            'GM' => 'Gambia',
+            'GN' => 'Guinea',
+            'GP' => 'Guadeloupe',
+            'GQ' => 'Equatorial Guinea',
+            'GR' => 'Greece',
+            'GS' => 'South Georgia (Falkland Islands)',
+            'GT' => 'Guatemala',
+            'GW' => 'Guinea-Bissau',
+            'GY' => 'Guyana',
+            'HK' => 'Hong Kong',
+            'HN' => 'Honduras',
+            'HR' => 'Croatia',
+            'HT' => 'Haiti',
+            'HU' => 'Hungary',
+            'ID' => 'Indonesia',
+            'IE' => 'Ireland',
+            'IL' => 'Israel',
+            'IN' => 'India',
+            'IQ' => 'Iraq',
+            'IR' => 'Iran',
+            'IS' => 'Iceland',
+            'IT' => 'Italy',
+            'JM' => 'Jamaica',
+            'JO' => 'Jordan',
+            'JP' => 'Japan',
+            'KE' => 'Kenya',
+            'KG' => 'Kyrgyzstan',
+            'KH' => 'Cambodia',
+            'KI' => 'Kiribati',
+            'KM' => 'Comoros',
+            'KN' => 'Saint Kitts (St. Christopher and Nevis)',
+            'KP' => 'North Korea (Korea, Democratic People\'s Republic of)',
+            'KR' => 'South Korea (Korea, Republic of)',
+            'KW' => 'Kuwait',
+            'KY' => 'Cayman Islands',
+            'KZ' => 'Kazakhstan',
+            'LA' => 'Laos',
+            'LB' => 'Lebanon',
+            'LC' => 'Saint Lucia',
+            'LI' => 'Liechtenstein',
+            'LK' => 'Sri Lanka',
+            'LR' => 'Liberia',
+            'LS' => 'Lesotho',
+            'LT' => 'Lithuania',
+            'LU' => 'Luxembourg',
+            'LV' => 'Latvia',
+            'LY' => 'Libya',
+            'MA' => 'Morocco',
+            'MC' => 'Monaco (France)',
+            'MD' => 'Moldova',
+            'MG' => 'Madagascar',
+            'MK' => 'Macedonia, Republic of',
+            'ML' => 'Mali',
+            'MM' => 'Burma',
+            'MN' => 'Mongolia',
+            'MO' => 'Macao',
+            'MQ' => 'Martinique',
+            'MR' => 'Mauritania',
+            'MS' => 'Montserrat',
+            'MT' => 'Malta',
+            'MU' => 'Mauritius',
+            'MV' => 'Maldives',
+            'MW' => 'Malawi',
+            'MX' => 'Mexico',
+            'MY' => 'Malaysia',
+            'MZ' => 'Mozambique',
+            'NA' => 'Namibia',
+            'NC' => 'New Caledonia',
+            'NE' => 'Niger',
+            'NG' => 'Nigeria',
+            'NI' => 'Nicaragua',
+            'NL' => 'Netherlands',
+            'NO' => 'Norway',
+            'NP' => 'Nepal',
+            'NR' => 'Nauru',
+            'NZ' => 'New Zealand',
+            'OM' => 'Oman',
+            'PA' => 'Panama',
+            'PE' => 'Peru',
+            'PF' => 'French Polynesia',
+            'PG' => 'Papua New Guinea',
+            'PH' => 'Philippines',
+            'PK' => 'Pakistan',
+            'PL' => 'Poland',
+            'PM' => 'Saint Pierre and Miquelon',
+            'PN' => 'Pitcairn Island',
+            'PT' => 'Portugal',
+            'PY' => 'Paraguay',
+            'QA' => 'Qatar',
+            'RE' => 'Reunion',
+            'RO' => 'Romania',
+            'RS' => 'Serbia',
+            'RU' => 'Russia',
+            'RW' => 'Rwanda',
+            'SA' => 'Saudi Arabia',
+            'SB' => 'Solomon Islands',
+            'SC' => 'Seychelles',
+            'SD' => 'Sudan',
+            'SE' => 'Sweden',
+            'SG' => 'Singapore',
+            'SH' => 'Saint Helena',
+            'SI' => 'Slovenia',
+            'SK' => 'Slovak Republic',
+            'SL' => 'Sierra Leone',
+            'SM' => 'San Marino',
+            'SN' => 'Senegal',
+            'SO' => 'Somalia',
+            'SR' => 'Suriname',
+            'ST' => 'Sao Tome and Principe',
+            'SV' => 'El Salvador',
+            'SY' => 'Syrian Arab Republic',
+            'SZ' => 'Swaziland',
+            'TC' => 'Turks and Caicos Islands',
+            'TD' => 'Chad',
+            'TG' => 'Togo',
+            'TH' => 'Thailand',
+            'TJ' => 'Tajikistan',
+            'TK' => 'Tokelau (Union) Group (Western Samoa)',
+            'TL' => 'East Timor (Indonesia)',
+            'TM' => 'Turkmenistan',
+            'TN' => 'Tunisia',
+            'TO' => 'Tonga',
+            'TR' => 'Turkey',
+            'TT' => 'Trinidad and Tobago',
+            'TV' => 'Tuvalu',
+            'TW' => 'Taiwan',
+            'TZ' => 'Tanzania',
+            'UA' => 'Ukraine',
+            'UG' => 'Uganda',
+            'UY' => 'Uruguay',
+            'UZ' => 'Uzbekistan',
+            'VA' => 'Vatican City',
+            'VC' => 'Saint Vincent and the Grenadines',
+            'VE' => 'Venezuela',
+            'VG' => 'British Virgin Islands',
+            'VN' => 'Vietnam',
+            'VU' => 'Vanuatu',
+            'WF' => 'Wallis and Futuna Islands',
+            'WS' => 'Western Samoa',
+            'YE' => 'Yemen',
+            'YT' => 'Mayotte (France)',
+            'ZA' => 'South Africa',
+            'ZM' => 'Zambia',
+            'ZW' => 'Zimbabwe',
+        ];
+
+        if (isset($country_list[$code])) {
+            return $country_list[$code];
+        }
+
+        return null;
+    }
+
+    /**
      * @param null $shipping
      * @return string
      */
-    function cart_hash($shipping = null)
+    public function cart_hash($shipping = null)
     {
         // hashing the cart data, so we can check later if the cart has been updated
         $cart_hash = md5(serialize($this->core->cart->items_array()));
