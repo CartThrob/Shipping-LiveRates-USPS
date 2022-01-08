@@ -22,7 +22,7 @@ class Cartthrob_shipping_usps_ext
     /**
      * @return array
      */
-    public function settings()
+    public function settings(): array
     {
         return [];
     }
@@ -38,23 +38,23 @@ class Cartthrob_shipping_usps_ext
     }
 
     /**
-     *
+     * @return void
      */
     public function activate_extension()
     {
         ee()->db->insert('extensions', [
-            'class' => __CLASS__,
-            'method' => 'cartthrob_boot',
-            'hook' => 'cartthrob_boot',
+            'class'    => __CLASS__,
+            'method'   => 'cartthrob_boot',
+            'hook'     => 'cartthrob_boot',
             'settings' => serialize($this->settings),
             'priority' => 10,
-            'version' => $this->version,
-            'enabled' => 'y',
+            'version'  => $this->version,
+            'enabled'  => 'y',
         ]);
     }
 
     /**
-     * @param string $current
+     * @param  string $current
      * @return bool
      */
     public function update_extension($current = '')
@@ -68,7 +68,7 @@ class Cartthrob_shipping_usps_ext
     }
 
     /**
-     *
+     * @return void
      */
     public function disable_extension()
     {
