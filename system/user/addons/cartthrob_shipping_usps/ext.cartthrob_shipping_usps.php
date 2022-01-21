@@ -19,9 +19,6 @@ class Cartthrob_shipping_usps_ext
         $this->settings = $settings;
     }
 
-    /**
-     * @return array
-     */
     public function settings(): array
     {
         return [];
