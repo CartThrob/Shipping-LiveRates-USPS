@@ -250,29 +250,29 @@ class Cartthrob_shipping_usps extends ShippingPlugin
         $this->core->cart->set_custom_data('shipping_error', '');
         $this->core->cart->save();
 
-        $orig_state = ($this->plugin_settings('origination_state')) ? $this->plugin_settings('origination_state') : ee()->cartthrob_shipping_plugins->customer_location_defaults('state');
-        $orig_zip = ($this->plugin_settings('origination_zip')) ? $this->plugin_settings('origination_zip') : ee()->cartthrob_shipping_plugins->customer_location_defaults('zip');
-        $orig_country_code = ($this->plugin_settings('orig_country_code')) ? ee()->cartthrob_shipping_plugins->alpha2_country_code($this->plugin_settings('orig_country_code')) : ee()->cartthrob_shipping_plugins->alpha2_country_code(ee()->cartthrob_shipping_plugins->customer_location_defaults('country_code'));
-        $orig_res_com = ($this->plugin_settings('origination_res_com') == 'RES') ? 1 : 0;
-        $destination_res_com = ($this->plugin_settings('destination_res_com') == 'RES') ? 1 : 0;
+        $orig_state = ($this->getSetting('origination_state')) ? $this->getSetting('origination_state') : ee()->cartthrob_shipping_plugins->customer_location_defaults('state');
+        $orig_zip = ($this->getSetting('origination_zip')) ? $this->getSetting('origination_zip') : ee()->cartthrob_shipping_plugins->customer_location_defaults('zip');
+        $orig_country_code = ($this->getSetting('orig_country_code')) ? ee()->cartthrob_shipping_plugins->alpha2_country_code($this->getSetting('orig_country_code')) : ee()->cartthrob_shipping_plugins->alpha2_country_code(ee()->cartthrob_shipping_plugins->customer_location_defaults('country_code'));
+        $orig_res_com = ($this->getSetting('origination_res_com') == 'RES') ? 1 : 0;
+        $destination_res_com = ($this->getSetting('destination_res_com') == 'RES') ? 1 : 0;
 
         // the following variables are set, so that we can maintain this code, and CT1's code easier. setting these variables allows us to keep some of the following code in parity
-        $rate_chart = $this->plugin_settings('rate_chart');
+        $rate_chart = $this->getSetting('rate_chart');
         $shipping_address = ee()->cartthrob_shipping_plugins->customer_location_defaults('address');
         $shipping_address2 = ee()->cartthrob_shipping_plugins->customer_location_defaults('address2');
         $shipping_city = ee()->cartthrob_shipping_plugins->customer_location_defaults('city');
         $shipping_state = ee()->cartthrob_shipping_plugins->customer_location_defaults('state');
         $shipping_zip = ee()->cartthrob_shipping_plugins->customer_location_defaults('zip');
         $dest_country_code = ee()->cartthrob_shipping_plugins->alpha2_country_code(ee()->cartthrob_shipping_plugins->customer_location_defaults('country_code'));
-        $container = ee()->cartthrob_shipping_plugins->customer_location_defaults('container', $this->plugin_settings('container'));
-        $dim_width = ee()->cartthrob_shipping_plugins->customer_location_defaults('width', $this->plugin_settings('def_width'));
-        $dim_length = ee()->cartthrob_shipping_plugins->customer_location_defaults('length', $this->plugin_settings('def_length'));
-        $dim_height = ee()->cartthrob_shipping_plugins->customer_location_defaults('height', $this->plugin_settings('def_height'));
+        $container = ee()->cartthrob_shipping_plugins->customer_location_defaults('container', $this->getSetting('container'));
+        $dim_width = ee()->cartthrob_shipping_plugins->customer_location_defaults('width', $this->getSetting('def_width'));
+        $dim_length = ee()->cartthrob_shipping_plugins->customer_location_defaults('length', $this->getSetting('def_length'));
+        $dim_height = ee()->cartthrob_shipping_plugins->customer_location_defaults('height', $this->getSetting('def_height'));
         // set default weight
         $weight_total = ($this->core->cart->weight() ? $this->core->cart->weight() : 1);
 
         if ($option_value == 'ALL') {
-            $product_id = $this->plugin_settings('product_id');
+            $product_id = $this->getSetting('product_id');
         } else {
             $product_id = $option_value;
         }
@@ -284,7 +284,7 @@ class Cartthrob_shipping_usps extends ShippingPlugin
             'option_name'	  => [],
         ];
 
-        if (!$this->plugin_settings('userid')) {
+        if (!$this->getSetting('userid')) {
             $shipping['error_message'] = ee()->lang->line('shipping_settings_not_configured');
 
             return $shipping;
@@ -298,7 +298,7 @@ class Cartthrob_shipping_usps extends ShippingPlugin
 
         $container = 'RECTANGULAR';
 
-        if ($this->plugin_settings('def_width') > 12 || $this->plugin_settings('def_length') > 12 || $this->plugin_settings('def_height') > 12) {
+        if ($this->getSetting('def_width') > 12 || $this->getSetting('def_length') > 12 || $this->getSetting('def_height') > 12) {
             $size = 'LARGE'; // large is any container over 12 on any side.
         } else {
             $size = 'REGULAR';
@@ -311,7 +311,7 @@ class Cartthrob_shipping_usps extends ShippingPlugin
         ///////////////////////////////////////////////////////////////////
         // USPS uses 2 char codes. This is supposed to be this way
         if ($dest_country_code == 'US') {
-            $request = new SimpleXMLElement('<' . $api . "Request USERID='" . $this->plugin_settings('userid') . "'></" . $api . 'Request>');
+            $request = new SimpleXMLElement('<' . $api . "Request USERID='" . $this->getSetting('userid') . "'></" . $api . 'Request>');
             $request->addChild('Revision', '2');
 
             foreach ($this->shipping_methods() as $key => $item) {
@@ -342,21 +342,21 @@ class Cartthrob_shipping_usps extends ShippingPlugin
                 $package->addAttribute('ID', $key);
                 $package->addChild('Service', $item);
                 $package->addChild('FirstClassMailType', 'PARCEL');
-                $package->addChild('ZipOrigination', substr($this->plugin_settings('origination_zip'), 0, 5));
+                $package->addChild('ZipOrigination', substr($this->getSetting('origination_zip'), 0, 5));
                 $package->addChild('ZipDestination', substr($shipping_zip, 0, 5));
                 $package->addChild('Pounds', $pounds);
                 $package->addChild('Ounces', $ounces);
                 $package->addChild('Container', $container);
                 $package->addChild('Size', $size);
-                $package->addChild('Width', $this->plugin_settings('def_width'));
-                $package->addChild('Length', $this->plugin_settings('def_length'));
-                $package->addChild('Height', $this->plugin_settings('def_height'));
+                $package->addChild('Width', $this->getSetting('def_width'));
+                $package->addChild('Length', $this->getSetting('def_length'));
+                $package->addChild('Height', $this->getSetting('def_height'));
                 $package->addChild('Machinable', 'true');
             }
 
             $xml = new SimpleXMLElement(ee()->cartthrob_shipping_plugins->curl_transaction($this->host . urlencode((string)$request->asXML())));
         } else {
-            $request = new SimpleXMLElement('<' . $intl_api . "Request USERID='" . $this->plugin_settings('userid') . "'></" . $intl_api . 'Request>');
+            $request = new SimpleXMLElement('<' . $intl_api . "Request USERID='" . $this->getSetting('userid') . "'></" . $intl_api . 'Request>');
             $request->addChild('Revision', '2');
 
             $package = $request->addChild('Package');
@@ -368,11 +368,11 @@ class Cartthrob_shipping_usps extends ShippingPlugin
             $package->addChild('Country', $this->usps_country($dest_country_code)); // USPS insists on making us send the country NAME rather than code. LAME!
             $package->addChild('Container', 'RECTANGULAR');
             $package->addChild('Size', $size);
-            $package->addChild('Width', $this->plugin_settings('def_width'));
-            $package->addChild('Length', $this->plugin_settings('def_length'));
-            $package->addChild('Height', $this->plugin_settings('def_height'));
-            $package->addChild('Girth', round($this->plugin_settings('def_width') + $this->plugin_settings('def_length')));
-            $package->addChild('OriginZip', substr($this->plugin_settings('origination_zip'), 0, 5));
+            $package->addChild('Width', $this->getSetting('def_width'));
+            $package->addChild('Length', $this->getSetting('def_length'));
+            $package->addChild('Height', $this->getSetting('def_height'));
+            $package->addChild('Girth', round($this->getSetting('def_width') + $this->getSetting('def_length')));
+            $package->addChild('OriginZip', substr($this->getSetting('origination_zip'), 0, 5));
 
             $xml = new SimpleXMLElement(ee()->cartthrob_shipping_plugins->curl_transaction($this->international_host . urlencode((string)$request->asXML())));
         }
@@ -470,7 +470,7 @@ class Cartthrob_shipping_usps extends ShippingPlugin
 
             foreach ($shipping['option_value'] as $key => $value) {
                 // REMOVE THE ONES THAT ARE NOT OPTIONS
-                if ($this->plugin_settings($value) != 'n') {
+                if ($this->getSetting($value) != 'n') {
                     $available_shipping['price'][$key] = $shipping['price'][$key];
                     $available_shipping['option_value'][$key] = $shipping['option_value'][$key];
                     $available_shipping['option_name'][$key] = $shipping['option_name'][$key];
@@ -537,8 +537,8 @@ class Cartthrob_shipping_usps extends ShippingPlugin
                 $this->shipping_option = $shipping_data['option_value'][$temp_key];
                 $this->core->cart->set_shipping_info('shipping_option', $shipping_data['option_value'][$temp_key]);
             } else {
-                $this->shipping_option = $this->plugin_settings('product_id');
-                $this->core->cart->set_shipping_info('shipping_option', $this->plugin_settings('product_id'));
+                $this->shipping_option = $this->getSetting('product_id');
+                $this->core->cart->set_shipping_info('shipping_option', $this->getSetting('product_id'));
             }
         } else {
             $this->shipping_option = $this->core->cart->shipping_info('shipping_option');
@@ -581,7 +581,7 @@ class Cartthrob_shipping_usps extends ShippingPlugin
         }
 
         foreach ($this->shipping_methods as $key => $method) {
-            if ($this->plugin_settings($prefix . $key) == 'y') {
+            if ($this->getSetting($prefix . $key) == 'y') {
                 $available_options[$key] = $method;
             }
         }
