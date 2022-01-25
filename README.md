@@ -1,6 +1,8 @@
 cartthrob-live-rates
 ================================
 
+**Note**: Compatible with CartThrob 6.2.1
+
 To implement live rates shipping plugins place them in your system/user/addons folder as you would other addons. 
 
 Also, please review the included sample template code, as well as the information on the following pages: 
